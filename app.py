@@ -41,16 +41,43 @@ else:
 if api_key:
     genai.configure(api_key=api_key)
 
+# Función para consultar Gemini de forma ultra-robusta con búsqueda automática de modelo
+def consultar_agente_gemini(prompt_texto):
+    # Lista de nombres de modelos candidatos por orden de preferencia
+    modelos_candidatos = ['gemini-1.5-flash', 'gemini-1.5-pro', 'gemini-1.0-pro', 'models/gemini-1.5-flash']
+    
+    # Intentar obtener modelos soportados directamente desde la cuenta del usuario
+    try:
+        modelos_disponibles = [
+            m.name for m in genai.list_models() 
+            if 'generateContent' in m.supported_generation_methods
+        ]
+        if modelos_disponibles:
+            # Colocar los modelos devueltos por la API al inicio de la búsqueda
+            modelos_candidatos = modelos_disponibles + modelos_candidatos
+    except Exception:
+        pass
+
+    # Probar con los modelos disponibles hasta que uno responda exitosamente
+    ultimo_error = None
+    for nombre_modelo in modelos_candidatos:
+        try:
+            model = genai.GenerativeModel(nombre_modelo)
+            response = model.generate_content(prompt_texto)
+            return response.text
+        except Exception as e:
+            ultimo_error = e
+            continue
+            
+    raise Exception(f"No se pudo conectar a ningún modelo de Gemini disponible. Detalle: {ultimo_error}")
+
 # Pestañas del Dashboard
 tab1, tab2 = st.tabs(["📊 Catálogo de 50 Granjas (Kaggle)", "📝 Carga / Simulación Manual"])
 
 def calcular_credit_score(yield_pred, loan_amount, ndvi, disease_status, price_per_kg=0.35):
-    # Ecuación de Capacidad de Pago
     estimated_revenue = yield_pred * price_per_kg
-    # Estimated DSCR (Debt Service Coverage Ratio)
     dscr = estimated_revenue / max(loan_amount, 1)
     
-    # Base Credit Score (300 to 850)
     score = 600 + (dscr * 100) + (ndvi * 100)
     
     if disease_status in ['Severe', 'Moderate']:
@@ -87,16 +114,13 @@ with tab1:
         loan_requested = st.number_input("Monto del Microcrédito Solicitado ($ USD):", min_value=100, max_value=5000, value=800, step=50, key="loan_tab1")
 
     if st.button("Evaluar Crédito (Tab 1)", type="primary"):
-        # Preparar vector de características para el modelo ML
         input_data = pd.DataFrame([farm_data])
         input_ml = pd.get_dummies(input_data, columns=['irrigation_type', 'crop_disease_status'], drop_first=False)
         input_ml = input_ml.reindex(columns=columnas_ml, fill_value=0)
         
-        # Predicción ML
         yield_pred = modelo_rf.predict(input_ml)[0]
         score, decision, color, dscr, revenue = calcular_credit_score(yield_pred, loan_requested, farm_data['NDVI_index'], farm_data['crop_disease_status'])
         
-        # Despliegue de Resultados
         st.divider()
         m1, m2, m3, m4 = st.columns(4)
         m1.metric("Cosecha Estimada (kg/ha)", f"{yield_pred:,.1f} kg")
@@ -106,7 +130,6 @@ with tab1:
         
         st.markdown(f"### Dictamen del Modelo: <span style='color:{color}'>{decision}</span>", unsafe_allow_html=True)
         
-        # Evaluación por Agente IA (Gemini)
         if api_key:
             st.divider()
             st.subheader("🤖 Reporte Financiero del Agente de IA (Gemini)")
@@ -128,9 +151,8 @@ with tab1:
                 - Score Crediticio Asignado: {score} ({decision})
                 """
                 try:
-                    gemini_model = genai.GenerativeModel('gemini-1.5-flash')
-                    response = gemini_model.generate_content(prompt)
-                    st.info(response.text)
+                    resultado_ia = consultar_agente_gemini(prompt)
+                    st.info(resultado_ia)
                 except Exception as err:
                     st.error(f"Error al conectar con la API de Gemini: {err}")
         else:
@@ -201,9 +223,8 @@ with tab2:
                 - Score Crediticio: {score} ({decision})
                 """
                 try:
-                    gemini_model = genai.GenerativeModel('gemini-1.5-flash')
-                    response = gemini_model.generate_content(prompt_manual)
-                    st.info(response.text)
+                    resultado_ia = consultar_agente_gemini(prompt_manual)
+                    st.info(resultado_ia)
                 except Exception as err:
                     st.error(f"Error al conectar con la API de Gemini: {err}")
         else:
