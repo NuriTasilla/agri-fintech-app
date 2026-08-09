@@ -49,8 +49,8 @@ st.markdown("""
 """, unsafe_allow_html=True)
 
 # Encabezado
-st.markdown('<div class="main-title">🌾 Agri-Fintech AI: Credit Cockpit</div>', unsafe_allow_html=True)
-st.markdown('<div class="sub-title">Plataforma de evaluación crediticia alternativa con analítica satelital e IA con salida estructurada JSON.</div>', unsafe_allow_html=True)
+st.markdown('<div class="main-title">🌾CoFundo: Credit Cockpit</div>', unsafe_allow_html=True)
+st.markdown('<div class="sub-title">Plataforma de evaluación crediticia alternativa con analítica satelital, IOT e IA.</div>', unsafe_allow_html=True)
 
 # 3. Cargar Recursos
 @st.cache_resource
@@ -66,7 +66,7 @@ except Exception as e:
     st.error("⚠️ Error al cargar archivos del repositorio ('modelo_agrotech.pkl' o '50_ejemplares_kaggle.csv').")
     st.stop()
 
-# 4. Configurar API Gemini con soporte JSON
+# 4. Configurar API Gemini
 api_key = None
 if "GEMINI_API_KEY" in st.secrets:
     api_key = st.secrets["GEMINI_API_KEY"].strip()
@@ -79,11 +79,32 @@ else:
 if api_key:
     genai.configure(api_key=api_key)
 
+# FUNCIÓN CORREGIDA CON AUTO-DETECCIÓN DE MODELO ACTIVO
 def consultar_agente_gemini_json(prompt_texto):
-    modelos = ['gemini-1.5-flash', 'models/gemini-1.5-flash', 'gemini-1.5-pro']
-    ultimo_error = None
+    modelos_disponibles = []
     
-    for mod in modelos:
+    # 1. Explorar dinámicamente qué modelos soporta tu API Key
+    try:
+        for m in genai.list_models():
+            if 'generateContent' in m.supported_generation_methods:
+                modelos_disponibles.append(m.name)
+    except Exception:
+        pass
+        
+    # Nombres de respaldo estándar por si falla la lista
+    modelos_respaldo = [
+        'gemini-1.5-flash', 'gemini-1.5-pro',
+        'models/gemini-1.5-flash', 'models/gemini-1.5-pro',
+        'gemini-1.0-pro', 'models/gemini-1.0-pro'
+    ]
+    
+    # Unir sin duplicados
+    modelos_a_probar = modelos_disponibles + [m for m in modelos_respaldo if m not in modelos_disponibles]
+    
+    ultimo_error = None
+
+    # Intento A: Con modo JSON nativo
+    for mod in modelos_a_probar:
         try:
             model = genai.GenerativeModel(
                 mod, 
@@ -94,19 +115,23 @@ def consultar_agente_gemini_json(prompt_texto):
         except Exception as e:
             ultimo_error = e
             continue
-            
-    # Si falla la salida estricta en JSON, intentar respuesta estándar y parsear
-    for mod in modelos:
+
+    # Intento B: Si el endpoint no soporta mime_type, forzar extracción del bloque de texto JSON
+    for mod in modelos_a_probar:
         try:
             model = genai.GenerativeModel(mod)
-            response = model.generate_content(prompt_texto + "\nDevuelve UNICAMENTE un objeto JSON valido.")
-            text = response.text.replace("```json", "").replace("```", "").strip()
-            return json.loads(text)
+            response = model.generate_content(prompt_texto + "\n\nResponde ÚNICAMENTE con un objeto JSON válido sin texto adicional.")
+            texto_raw = response.text.strip()
+            if "```json" in texto_raw:
+                texto_raw = texto_raw.split("```json")[1].split("```")[0].strip()
+            elif "```" in texto_raw:
+                texto_raw = texto_raw.split("```")[1].split("```")[0].strip()
+            return json.loads(texto_raw)
         except Exception as e:
             ultimo_error = e
             continue
             
-    raise Exception(f"Falla de conexión LLM JSON: {ultimo_error}")
+    raise Exception(f"No se pudo conectar a Gemini. Detalle: {ultimo_error}")
 
 # 5. Lógica Financiera y Gráficos
 def calcular_credit_score(yield_pred, loan_amount, ndvi, disease_status, price_per_kg=0.35):
@@ -146,26 +171,21 @@ def plot_gauge_score(score):
     fig.update_layout(paper_bgcolor="rgba(0,0,0,0)", plot_bgcolor="rgba(0,0,0,0)", height=220, margin=dict(t=10, b=10, l=15, r=15))
     return fig
 
-# RADAR EXTENDIDO A 8 EJES (Saturación técnica completa)
+# RADAR EXTENDIDO A 8 EJES
 def plot_radar_agronomo_8_ejes(row):
-    # Normalización a escala 0-100%
     val_ndvi = min(row['NDVI_index'] * 100, 100)
     val_moist = min(row['soil_moisture_%'], 100)
     
-    # pH óptimo entre 6.0 y 7.5 (si se aleja baja el puntaje)
     ph = row['soil_pH']
     val_ph = 100 - (abs(6.8 - ph) * 20)
     val_ph = max(min(val_ph, 100), 10)
     
-    # Lluvia (óptimo 400-800mm)
     val_rain = min((row['rainfall_mm'] / 800) * 100, 100)
     
-    # Temperatura (óptima 20-30°C)
     temp = row['temperature_C']
     val_temp = 100 - (abs(25 - temp) * 4)
     val_temp = max(min(val_temp, 100), 20)
     
-    # Horas de sol
     val_sun = min((row['sunlight_hours'] / 12) * 100, 100)
     
     dict_disease = {"None": 100, "Mild": 75, "Moderate": 40, "Severe": 10}
@@ -208,7 +228,7 @@ with tab1:
     with col_sel2:
         loan_requested = st.number_input("Monto Crédito Solicitado ($ USD):", 100, 10000, 800, step=50)
 
-    # FICHA TÉCNICA SIN ESPACIOS VACÍOS
+    # FICHA TÉCNICA
     with st.container(border=True):
         st.subheader("📍 Ficha Técnica & Sensores Agrónomos")
         f1, f2, f3, f4, f5 = st.columns(5)
@@ -302,9 +322,7 @@ with tab1:
                 try:
                     data_json = consultar_agente_gemini_json(prompt_json)
                     
-                    # RENDERIZADO DINÁMICO DESDE EL JSON DE LA IA
-                    
-                    # 1. Gauges / Barras de Riesgo devueltos por la IA
+                    # RENDERIZADO DESDE EL JSON
                     c_ai1, c_ai2 = st.columns(2)
                     
                     with c_ai1:
@@ -326,7 +344,6 @@ with tab1:
                             df_stress = pd.DataFrame(data_json.get("stress_test", []))
                             st.dataframe(df_stress, use_container_width=True, hide_index=True)
 
-                    # 2. Fortalezas, Alertas y Checklist de Cláusulas
                     c_det1, c_det2 = st.columns(2)
                     with c_det1:
                         with st.container(border=True):
