@@ -26,9 +26,17 @@ except Exception as e:
     st.error("⚠️ Sube los archivos 'modelo_agrotech.pkl' y '50_ejemplares_kaggle.csv' al directorio principal.")
     st.stop()
 
-# Configurar API de Gemini
-st.sidebar.header("🔑 Configuración del Agente IA")
-api_key = st.sidebar.text_input("Ingresa tu Gemini API Key:", type="password")
+# Configurar API de Gemini mediante Streamlit Secrets o Input Manual
+api_key = None
+
+if "GEMINI_API_KEY" in st.secrets:
+    api_key = st.secrets["GEMINI_API_KEY"].strip()
+    st.sidebar.success("🔑 Gemini API Key cargada automáticamente (Secrets)")
+else:
+    st.sidebar.header("🔑 Configuración del Agente IA")
+    user_key = st.sidebar.text_input("Ingresa tu Gemini API Key:", type="password")
+    if user_key:
+        api_key = user_key.strip()
 
 if api_key:
     genai.configure(api_key=api_key)
@@ -126,7 +134,7 @@ with tab1:
                 except Exception as err:
                     st.error(f"Error al conectar con la API de Gemini: {err}")
         else:
-            st.warning("⚠️ Ingresa tu Gemini API Key en la barra lateral para generar el dictamen del Agente de IA.")
+            st.warning("⚠️ No se encontró una Gemini API Key configurada.")
 
 # TAB 2: SIMULADOR MANUAL
 with tab2:
@@ -199,4 +207,4 @@ with tab2:
                 except Exception as err:
                     st.error(f"Error al conectar con la API de Gemini: {err}")
         else:
-            st.warning("⚠️ Ingresa tu Gemini API Key en la barra lateral para generar el dictamen del Agente de IA.")
+            st.warning("⚠️ No se encontró una Gemini API Key configurada.")
