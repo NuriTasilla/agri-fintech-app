@@ -5,53 +5,77 @@ import pickle
 import google.generativeai as genai
 import plotly.graph_objects as go
 
-# 1. Configuración de la página (Wide & Dark)
-st.set_page_config(page_title="Agri-Fintech Copilot", page_icon="🌾", layout="wide", initial_sidebar_state="expanded")
+# 1. Configuración de Página (Wide & Light)
+st.set_page_config(
+    page_title="Agri-Fintech Credit Cockpit", 
+    page_icon="🌾", 
+    layout="wide", 
+    initial_sidebar_state="expanded"
+)
 
-# 2. Inyección de CSS (Diseño Premium Dark Mode / UI Neumorfismo)
+# 2. Inyección de CSS (Diseño Minimalista Light / Clean Corporate Fintech)
 st.markdown("""
 <style>
-    /* Fondo principal y tipografía */
+    /* Fondo General en Blanco/Gris Neutro Suave */
     .stApp {
-        background-color: #0D0E15;
-        color: #FFFFFF;
+        background-color: #F8FAFC;
+        color: #0F172A;
+        font-family: 'Inter', system-ui, -apple-system, sans-serif;
     }
     
-    /* Tarjetas estilo Bento Grid (Glassmorphism) */
-    .bento-card {
-        background: #181C25;
-        border-radius: 16px;
-        padding: 24px;
-        border: 1px solid #2A2F3D;
-        box-shadow: 0 8px 32px 0 rgba(0, 0, 0, 0.3);
-        margin-bottom: 20px;
+    /* Tarjetas Blancas con Bordes Suaves y Sombra Sutil */
+    .card-light {
+        background-color: #FFFFFF;
+        border-radius: 12px;
+        padding: 20px;
+        border: 1px solid #E2E8F0;
+        box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.05), 0 2px 4px -1px rgba(0, 0, 0, 0.03);
+        margin-bottom: 16px;
     }
     
-    /* Números Hero para Métricas */
-    div[data-testid="stMetricValue"] {
-        font-size: 2.5rem !important;
-        font-weight: 800 !important;
-        color: #FFFFFF !important;
-    }
-    div[data-testid="stMetricLabel"] {
-        font-size: 1rem !important;
-        color: #9CA3AF !important;
+    /* Titulares Estilo Fintech */
+    .main-title {
+        color: #0F172A;
+        font-size: 2rem;
+        font-weight: 800;
+        letter-spacing: -0.02em;
+        margin-bottom: 4px;
     }
     
-    /* Badges / Píldoras de Estado */
-    .badge-green { background: rgba(16, 185, 129, 0.15); color: #10B981; padding: 6px 12px; border-radius: 20px; font-weight: 700; font-size: 0.85rem; border: 1px solid rgba(16, 185, 129, 0.3); display: inline-block;}
-    .badge-red { background: rgba(239, 68, 68, 0.15); color: #EF4444; padding: 6px 12px; border-radius: 20px; font-weight: 700; font-size: 0.85rem; border: 1px solid rgba(239, 68, 68, 0.3); display: inline-block;}
-    .badge-yellow { background: rgba(245, 158, 11, 0.15); color: #F59E0B; padding: 6px 12px; border-radius: 20px; font-weight: 700; font-size: 0.85rem; border: 1px solid rgba(245, 158, 11, 0.3); display: inline-block;}
-    .badge-blue { background: rgba(59, 130, 246, 0.15); color: #3B82F6; padding: 6px 12px; border-radius: 20px; font-weight: 700; font-size: 0.85rem; border: 1px solid rgba(59, 130, 246, 0.3); display: inline-block;}
+    .sub-title {
+        color: #64748B;
+        font-size: 1rem;
+        margin-bottom: 24px;
+    }
+
+    .section-header {
+        font-size: 1.1rem;
+        font-weight: 700;
+        color: #334155;
+        margin-bottom: 12px;
+        border-bottom: 2px solid #F1F5F9;
+        padding-bottom: 6px;
+    }
+    
+    /* Badges / Etiquetas de Estado */
+    .badge-approved { background-color: #DCFCE7; color: #166534; padding: 6px 14px; border-radius: 20px; font-weight: 700; font-size: 0.85rem; border: 1px solid #BBF7D0; }
+    .badge-warning { background-color: #FEF3C7; color: #92400E; padding: 6px 14px; border-radius: 20px; font-weight: 700; font-size: 0.85rem; border: 1px solid #FDE68A; }
+    .badge-rejected { background-color: #FEE2E2; color: #991B1B; padding: 6px 14px; border-radius: 20px; font-weight: 700; font-size: 0.85rem; border: 1px solid #FECACA; }
+    .badge-info { background-color: #EFF6FF; color: #1E40AF; padding: 4px 10px; border-radius: 8px; font-weight: 600; font-size: 0.8rem; }
+
+    /* Ajuste de inputs de Streamlit */
+    div[data-baseweb="select"] > div {
+        border-radius: 8px !important;
+        background-color: #FFFFFF !important;
+    }
 </style>
 """, unsafe_allow_html=True)
 
-# Título y Header
-st.markdown("## 🌾 Agri-Fintech AI: Credit Cockpit")
-st.markdown("<span style='color:#9CA3AF; font-size:1.1rem;'>Plataforma de evaluación crediticia alternativa impulsada por IoT satelital e Inteligencia Artificial.</span>", unsafe_allow_html=True)
-st.write("")
+# Encabezado
+st.markdown('<div class="main-title">🌾 Agri-Fintech AI: Credit Cockpit</div>', unsafe_allow_html=True)
+st.markdown('<div class="sub-title">Plataforma de evaluación de riesgo crediticio para pequeños agricultores basada en IoT satelital y modelos LLM.</div>', unsafe_allow_html=True)
 
-# 3. Cargar Modelo y Datos
+# 3. Cargar Modelo de Machine Learning y Dataset
 @st.cache_resource
 def cargar_recursos():
     with open('modelo_agrotech.pkl', 'rb') as f:
@@ -62,15 +86,15 @@ def cargar_recursos():
 try:
     modelo_rf, columnas_ml, df_50 = cargar_recursos()
 except Exception as e:
-    st.error("⚠️ Error: Sube los archivos 'modelo_agrotech.pkl' y '50_ejemplares_kaggle.csv'.")
+    st.error("⚠️ Error: Sube los archivos 'modelo_agrotech.pkl' y '50_ejemplares_kaggle.csv' al repositorio.")
     st.stop()
 
-# 4. Configurar API Gemini (Auto-Secrets)
+# 4. Configurar API Gemini con soporte multi-modelo ultra-robusto
 api_key = None
 if "GEMINI_API_KEY" in st.secrets:
     api_key = st.secrets["GEMINI_API_KEY"].strip()
 else:
-    st.sidebar.markdown("### 🔑 Acceso API")
+    st.sidebar.markdown("### 🔑 API Key")
     user_key = st.sidebar.text_input("Gemini API Key:", type="password")
     if user_key:
         api_key = user_key.strip()
@@ -79,9 +103,21 @@ if api_key:
     genai.configure(api_key=api_key)
 
 def consultar_agente_gemini(prompt_texto):
-    modelos_candidatos = ['gemini-1.5-flash', 'gemini-1.5-pro', 'gemini-1.0-pro', 'models/gemini-1.5-flash']
+    # Intentar obtener modelos dinámicamente asignados a la API Key
+    modelos_a_probar = []
+    try:
+        models_list = genai.list_models()
+        for m in models_list:
+            if 'generateContent' in m.supported_generation_methods:
+                modelos_a_probar.append(m.name)
+    except Exception:
+        pass
+    
+    # Modelos de respaldo estándar
+    modelos_a_probar.extend(['gemini-1.5-flash', 'models/gemini-1.5-flash', 'gemini-1.5-pro', 'gemini-1.0-pro'])
+    
     ultimo_error = None
-    for nombre_modelo in modelos_candidatos:
+    for nombre_modelo in modelos_a_probar:
         try:
             model = genai.GenerativeModel(nombre_modelo)
             response = model.generate_content(prompt_texto)
@@ -89,9 +125,10 @@ def consultar_agente_gemini(prompt_texto):
         except Exception as e:
             ultimo_error = e
             continue
-    raise Exception(f"Falla de conexión LLM: {ultimo_error}")
+            
+    raise Exception(f"No se pudo establecer comunicación con la API de Gemini. Detalle: {ultimo_error}")
 
-# 5. Funciones Financieras y de UI
+# 5. Funciones Financieras y Gráficos Light Mode
 def calcular_credit_score(yield_pred, loan_amount, ndvi, disease_status, price_per_kg=0.35):
     estimated_revenue = yield_pred * price_per_kg
     dscr = estimated_revenue / max(loan_amount, 1)
@@ -103,35 +140,33 @@ def calcular_credit_score(yield_pred, loan_amount, ndvi, disease_status, price_p
     score = int(np.clip(score, 300, 850))
     
     if score >= 720:
-        return score, "APROBADO", "#10B981", dscr, estimated_revenue
+        return score, "APROBADO", "badge-approved", dscr, estimated_revenue
     elif score >= 600:
-        return score, "RIESGO MODERADO", "#F59E0B", dscr, estimated_revenue
+        return score, "RIESGO MODERADO", "badge-warning", dscr, estimated_revenue
     else:
-        return score, "RECHAZADO", "#EF4444", dscr, estimated_revenue
+        return score, "RECHAZADO", "badge-rejected", dscr, estimated_revenue
 
-# --- GRÁFICOS VISUALES AVANZADOS (PLOTLY) ---
 def plot_gauge_score(score):
     fig = go.Figure(go.Indicator(
         mode="gauge+number", value=score,
         domain={'x': [0, 1], 'y': [0, 1]},
-        number={'font': {'size': 60, 'color': 'white', 'weight': 'bold'}},
+        number={'font': {'size': 50, 'color': '#0F172A', 'family': 'Inter'}},
         gauge={
-            'axis': {'range': [300, 850], 'tickwidth': 1, 'tickcolor': "white"},
-            'bar': {'color': "#3B82F6", 'thickness': 0.3},
-            'bgcolor': "rgba(0,0,0,0)",
+            'axis': {'range': [300, 850], 'tickwidth': 1, 'tickcolor': "#94A3B8"},
+            'bar': {'color': "#2563EB", 'thickness': 0.25},
+            'bgcolor': "white",
             'borderwidth': 0,
             'steps': [
-                {'range': [300, 599], 'color': "rgba(239, 68, 68, 0.4)"},   # Red
-                {'range': [600, 719], 'color': "rgba(245, 158, 11, 0.4)"},  # Yellow
-                {'range': [720, 850], 'color': "rgba(16, 185, 129, 0.4)"}   # Green
+                {'range': [300, 599], 'color': "rgba(239, 68, 68, 0.15)"},
+                {'range': [600, 719], 'color': "rgba(245, 158, 11, 0.15)"},
+                {'range': [720, 850], 'color': "rgba(16, 185, 129, 0.15)"}
             ],
         }
     ))
-    fig.update_layout(paper_bgcolor="rgba(0,0,0,0)", plot_bgcolor="rgba(0,0,0,0)", height=300, margin=dict(t=20, b=20, l=20, r=20))
+    fig.update_layout(paper_bgcolor="rgba(0,0,0,0)", plot_bgcolor="rgba(0,0,0,0)", height=250, margin=dict(t=20, b=10, l=20, r=20))
     return fig
 
 def plot_radar_agronomo(ndvi, moisture, disease, irrigation):
-    # Normalizar valores a escala 0-100 para el radar
     val_ndvi = min(ndvi * 100, 100)
     val_moist = min(moisture, 100)
     
@@ -141,156 +176,206 @@ def plot_radar_agronomo(ndvi, moisture, disease, irrigation):
     dict_irrig = {"Drip": 100, "Sprinkler": 80, "Manual": 40, "None": 10}
     val_irrig = dict_irrig.get(irrigation, 50)
     
-    categories = ['Vigor (NDVI)', 'Humedad Suelo', 'Salud (Fitosanitario)', 'Eficiencia Riego']
+    categories = ['Vigor (NDVI)', 'Humedad Suelo', 'Salud Cultivo', 'Eficiencia Riego']
     values = [val_ndvi, val_moist, val_dis, val_irrig]
     
     fig = go.Figure(data=go.Scatterpolar(
         r=values + [values[0]],
         theta=categories + [categories[0]],
         fill='toself',
-        fillcolor='rgba(16, 185, 129, 0.3)',
-        line=dict(color='#10B981', width=2)
+        fillcolor='rgba(37, 99, 235, 0.15)',
+        line=dict(color='#2563EB', width=2)
     ))
     fig.update_layout(
         polar=dict(
-            radialaxis=dict(visible=True, range=[0, 100], gridcolor="#2A2F3D", tickfont=dict(color="#9CA3AF")),
-            angularaxis=dict(gridcolor="#2A2F3D", tickfont=dict(color="white", size=12)),
-            bgcolor="rgba(0,0,0,0)"
+            radialaxis=dict(visible=True, range=[0, 100], gridcolor="#E2E8F0", tickfont=dict(color="#64748B", size=9)),
+            angularaxis=dict(gridcolor="#E2E8F0", tickfont=dict(color="#334155", size=11, family="Inter")),
+            bgcolor="white"
         ),
-        paper_bgcolor="rgba(0,0,0,0)", height=350, margin=dict(t=40, b=40, l=40, r=40)
+        paper_bgcolor="rgba(0,0,0,0)", height=280, margin=dict(t=30, b=30, l=30, r=30)
     )
     return fig
 
-# 6. Lógica de Pestañas
-tab1, tab2 = st.tabs(["🗃️ Base de Datos (Kaggle)", "🎛️ Simulador Manual"])
+# 6. Pestañas de Navegación
+tab1, tab2 = st.tabs(["📊 Catálogo de Clientes (Kaggle)", "📝 Evaluación Manual de Parcelas"])
 
-# --- TAB 1: EVALUACIÓN KAGGLE ---
+# --- TAB 1: EVALUACIÓN DE PARCELA ---
 with tab1:
-    col_sel, col_req = st.columns([2, 1])
-    with col_sel:
-        farm_id = st.selectbox("Buscar Cliente (Farm ID):", df_50['farm_id'].tolist())
+    c_sel1, c_sel2 = st.columns([2, 1])
+    with c_sel1:
+        farm_id = st.selectbox("Seleccionar ID de Parcela / Agricultor:", df_50['farm_id'].tolist())
         farm_data = df_50[df_50['farm_id'] == farm_id].iloc[0]
-    with col_req:
-        loan_requested = st.number_input("Monto de Crédito ($ USD):", 100, 5000, 800, step=100)
+    with c_sel2:
+        loan_requested = st.number_input("Monto del Crédito Solicitado ($ USD):", 100, 10000, 800, step=50)
 
-    # Botón Flotante Principal
-    if st.button("🚀 Ejecutar Scoring Multi-Dimensional", type="primary", use_container_width=True):
+    # FICHA TÉCNICA RESTRUCTURADA DE LA PARCELA (Visible siempre al seleccionar)
+    st.markdown('<div class="card-light">', unsafe_allow_html=True)
+    st.markdown('<div class="section-header">📍 Ficha Técnica & Datos Agrónomos de la Parcela</div>', unsafe_allow_html=True)
+    
+    f1, f2, f3, f4, f5 = st.columns(5)
+    f1.metric("Cultivo", str(farm_data['crop_type']))
+    f2.metric("Ubicación / Región", str(farm_data['region']))
+    f3.metric("Índice NDVI", f"{farm_data['NDVI_index']:.2f}")
+    f4.metric("Sistema de Riego", str(farm_data['irrigation_type']))
+    f5.metric("Estado Fitosanitario", str(farm_data['crop_disease_status']))
+
+    with st.expander("🔍 Ver parámetros detallados de sensores (Suelo, Clima y Ciclo)"):
+        s1, s2, s3, s4 = st.columns(4)
+        s1.write(f"**Humedad del Suelo:** {farm_data['soil_moisture_%']}%")
+        s2.write(f"**pH del Suelo:** {farm_data['soil_pH']}")
+        s3.write(f"**Precipitación:** {farm_data['rainfall_mm']} mm")
+        s4.write(f"**Temperatura Prom:** {farm_data['temperature_C']} °C")
+    st.markdown('</div>', unsafe_allow_html=True)
+
+    if st.button("⚡ Evaluar Riesgo y Generar Dictamen FinTech", type="primary", use_container_width=True):
         
-        # Preparación de datos y predicción ML
+        # Predicción Machine Learning
         input_data = pd.DataFrame([farm_data])
         input_ml = pd.get_dummies(input_data, columns=['irrigation_type', 'crop_disease_status'], drop_first=False)
         input_ml = input_ml.reindex(columns=columnas_ml, fill_value=0)
         
         yield_pred = modelo_rf.predict(input_ml)[0]
-        score, decision, color_hex, dscr, revenue = calcular_credit_score(
+        score, decision, badge_style, dscr, revenue = calcular_credit_score(
             yield_pred, loan_requested, farm_data['NDVI_index'], farm_data['crop_disease_status']
         )
         
-        # === INICIO DEL BENTO GRID (UI) ===
-        st.write("---")
+        # RESULTADOS: BENTO GRID LIGHT MODE
+        st.write("")
+        col_res1, col_res2, col_res3 = st.columns([1.2, 1, 1.1])
         
-        # Fila 1: KPIs Principales
-        c1, c2, c3 = st.columns([1.2, 1, 1])
-        
-        with c1:
-            st.markdown('<div class="bento-card">', unsafe_allow_html=True)
-            st.markdown("<h4 style='color:#9CA3AF; margin-top:0;'>AI Credit Score</h4>", unsafe_allow_html=True)
+        # Card 1: Score & Dictamen
+        with col_res1:
+            st.markdown('<div class="card-light" style="text-align: center;">', unsafe_allow_html=True)
+            st.markdown('<div class="section-header">Score Crediticio Alternativo</div>', unsafe_allow_html=True)
             st.plotly_chart(plot_gauge_score(score), use_container_width=True)
-            
-            # Badge Dinámico
-            badge_class = "badge-green" if score >= 720 else ("badge-yellow" if score >= 600 else "badge-red")
-            st.markdown(f"<div style='text-align:center;'><span class='{badge_class}'>{decision}</span></div>", unsafe_allow_html=True)
+            st.markdown(f'<span class="{badge_style}">{decision}</span>', unsafe_allow_html=True)
+            st.write("")
             st.markdown('</div>', unsafe_allow_html=True)
 
-        with c2:
-            st.markdown('<div class="bento-card">', unsafe_allow_html=True)
-            st.markdown("<h4 style='color:#9CA3AF; margin-top:0;'>Proyección Financiera</h4>", unsafe_allow_html=True)
-            st.metric("Ingreso Bruto Estimado", f"${revenue:,.2f} USD", f"{yield_pred:,.1f} kg")
-            st.metric("Monto Solicitado", f"${loan_requested:,.2f} USD")
-            
-            dscr_color = "normal" if dscr > 1.2 else "inverse"
-            st.metric("Ratio de Cobertura (DSCR)", f"{dscr:.2f}x", "Saludable" if dscr > 1.2 else "Riesgoso", delta_color=dscr_color)
+        # Card 2: Capacidad Financiera
+        with col_res2:
+            st.markdown('<div class="card-light">', unsafe_allow_html=True)
+            st.markdown('<div class="section-header">Capacidad Financiera</div>', unsafe_allow_html=True)
+            st.metric("Rendimiento Estimado (ML)", f"{yield_pred:,.1f} kg/ha")
+            st.metric("Ingreso Neto Estimado", f"${revenue:,.2f} USD")
+            st.metric("Ratio de Cobertura (DSCR)", f"{dscr:.2f}x", "Apto" if dscr >= 1.2 else "Riesgo de Mora")
             st.markdown('</div>', unsafe_allow_html=True)
 
-        with c3:
-            st.markdown('<div class="bento-card">', unsafe_allow_html=True)
-            st.markdown("<h4 style='color:#9CA3AF; margin-top:0;'>Radar Agrónomo</h4>", unsafe_allow_html=True)
+        # Card 3: Balance Agro-Satelital
+        with col_res3:
+            st.markdown('<div class="card-light">', unsafe_allow_html=True)
+            st.markdown('<div class="section-header">Balance Agrónomo 360°</div>', unsafe_allow_html=True)
             st.plotly_chart(plot_radar_agronomo(
                 farm_data['NDVI_index'], farm_data['soil_moisture_%'], 
                 farm_data['crop_disease_status'], farm_data['irrigation_type']
             ), use_container_width=True)
             st.markdown('</div>', unsafe_allow_html=True)
 
-        # Fila 2: Copiloto de IA (Generación Estructurada)
+        # REPORTES DEL AGENTE IA (Estructurado en Tarjetas Blancas)
         if api_key:
-            st.markdown("### 🤖 Agente IA: Copiloto de Riesgo")
-            with st.spinner("Analizando matrices de riesgo..."):
+            st.markdown("### 🤖 Dictamen del Agente de Inteligencia Artificial")
+            with st.spinner("Analizando viabilidad de microcrédito agrícola..."):
                 prompt = f"""
-                Eres el Copiloto de Riesgo Crediticio de un Banco Agrícola de primer nivel.
-                Analiza este caso y devuelve EXCLUSIVAMENTE 3 secciones usando este formato markdown exacto (sin introducciones):
+                Actúa como un Oficial Senior de Riesgo Crediticio en Microfinanzas Agrícolas.
+                Analiza el siguiente caso y responde EXCLUSIVAMENTE en 3 bloques claramente delimitados:
 
-                ### 🟢 Fortalezas del Perfil
-                (Usa viñetas para listar los puntos fuertes técnicos y financieros)
+                ### 🟢 Fortalezas del Cliente
+                - (Enumera 2 o 3 puntos fuertes técnicos o de rendimiento)
 
-                ### 🔴 Alertas Tempranas y Sensibilidad
-                (Usa viñetas para listar riesgos climáticos, biológicos o financieros)
+                ### ⚠️ Alertas de Riesgo
+                - (Enumera 2 o 3 riesgos climáticos, sanitarios o de capacidad de pago)
 
-                ### 📜 Cláusulas Sugeridas para el Contrato
-                (Redacta 2 condiciones estrictas para desembolsar el crédito basadas en los datos)
+                ### 📜 Condiciones para Desembolso
+                - (Propon 2 condiciones preventivas específicas para otorgar el crédito)
 
-                Datos de entrada:
-                Cultivo: {farm_data['crop_type']} | Riego: {farm_data['irrigation_type']} | Enfermedad: {farm_data['crop_disease_status']}
-                NDVI: {farm_data['NDVI_index']} | Lluvia: {farm_data['rainfall_mm']}mm
-                Préstamo: ${loan_requested} | Ingresos Estimados: ${revenue:.2f} | DSCR: {dscr:.2f}x | Score: {score}/850
+                Datos:
+                ID: {farm_data['farm_id']} | Cultivo: {farm_data['crop_type']} | Región: {farm_data['region']}
+                NDVI: {farm_data['NDVI_index']} | Enfermedad: {farm_data['crop_disease_status']} | Riego: {farm_data['irrigation_type']}
+                Monto Solicitado: ${loan_requested} USD | Rendimiento Estimado: {yield_pred:.1f} kg/ha
+                Ingresos Estimados: ${revenue:.2f} USD | DSCR: {dscr:.2f}x | Score: {score}/850 ({decision})
                 """
                 try:
-                    resultado_ia = consultar_agente_gemini(prompt)
+                    respuesta_ia = consultar_agente_gemini(prompt)
                     
-                    # Mostrar resultado en una tarjeta Bento grande
-                    st.markdown('<div class="bento-card">', unsafe_allow_html=True)
+                    st.markdown('<div class="card-light">', unsafe_allow_html=True)
+                    ai_col1, ai_col2 = st.columns(2)
                     
-                    # Dividimos la respuesta de la IA en columnas si es posible, o usamos markdown nativo
-                    c_ai1, c_ai2 = st.columns(2)
-                    
-                    # Parseo rápido por headers
-                    secciones = resultado_ia.split('###')
+                    # Separar secciones
+                    partes = respuesta_ia.split('###')
                     fortalezas = "🟢 Fortalezas"
-                    alertas = "🔴 Alertas"
-                    clausulas = "📜 Cláusulas"
+                    alertas = "⚠️ Alertas"
+                    condiciones = "📜 Condiciones"
                     
-                    for sec in secciones:
-                        if "Fortalezas" in sec: fortalezas = "###" + sec
-                        elif "Alertas" in sec: alertas = "###" + sec
-                        elif "Cláusulas" in sec: clausulas = "###" + sec
+                    for p in partes:
+                        if "Fortalezas" in p: fortalezas = "###" + p
+                        elif "Alertas" in p: alertas = "###" + p
+                        elif "Condiciones" in p: condiciones = "###" + p
 
-                    with c_ai1:
+                    with ai_col1:
                         st.markdown(fortalezas)
                         st.markdown(alertas)
-                    with c_ai2:
-                        st.info("💡 **Decisión del Motor Automático**")
-                        st.markdown(clausulas)
-                        
+                    with ai_col2:
+                        st.markdown(condiciones)
+                        st.success("✅ Análisis procesado correctamente por el Agente de IA.")
                     st.markdown('</div>', unsafe_allow_html=True)
+                    
                 except Exception as err:
-                    st.error(f"Error IA: {err}")
+                    st.error(f"Error al consultar el Agente de IA: {err}")
         else:
-            st.warning("⚠️ Requiere Gemini API Key en código (Secrets) o panel lateral para el Copiloto IA.")
+            st.warning("🔑 Agrega tu Gemini API Key para generar el análisis cualitativo con IA.")
 
-# --- TAB 2: SIMULADOR MANUAL (Resumido para la UI) ---
+# --- TAB 2: EVALUACIÓN MANUAL ---
 with tab2:
-    st.markdown("<h4 style='color:#9CA3AF;'>Consola de Parametrización Manual</h4>", unsafe_allow_html=True)
-    c_m1, c_m2, c_m3 = st.columns(3)
-    with c_m1:
-        s_moisture = st.slider("Humedad Suelo (%)", 0.0, 100.0, 45.0)
-        temp = st.slider("Temp (°C)", 10.0, 45.0, 26.0)
-    with c_m2:
-        ndvi = st.slider("NDVI (Salud Vigorosa)", 0.2, 0.95, 0.70)
-        rain = st.slider("Lluvia (mm)", 50.0, 1500.0, 600.0)
-    with c_m3:
-        irrigation = st.selectbox("Riego", ["Drip", "Sprinkler", "Manual", "None"])
-        disease = st.selectbox("Fitosanitario", ["None", "Mild", "Moderate", "Severe"])
-        loan_manual = st.number_input("Crédito ($ USD)", 100, 10000, 1500, step=100)
+    st.markdown('<div class="card-light">', unsafe_allow_html=True)
+    st.markdown('<div class="section-header">Ingreso de Parámetros de Sensores & Parcela</div>', unsafe_allow_html=True)
+    
+    mc1, mc2, mc3 = st.columns(3)
+    with mc1:
+        s_moisture = st.slider("Humedad del Suelo (%)", 0.0, 100.0, 45.0)
+        s_ph = st.slider("pH del Suelo", 4.0, 9.0, 6.5)
+        temp = st.slider("Temperatura Promedio (°C)", 10.0, 45.0, 26.0)
+    with mc2:
+        rain = st.slider("Precipitación Total (mm)", 50.0, 1500.0, 600.0)
+        ndvi = st.slider("Índice NDVI (Vigor)", 0.2, 0.95, 0.65)
+        days = st.number_input("Días de Cultivo", 60, 200, 120)
+    with mc3:
+        irrigation = st.selectbox("Sistema de Riego", ["Drip", "Sprinkler", "Manual", "None"])
+        disease = st.selectbox("Estado Fitosanitario", ["None", "Mild", "Moderate", "Severe"])
+        loan_manual = st.number_input("Monto Crédito ($ USD):", 100, 10000, 1200, step=100)
+    st.markdown('</div>', unsafe_allow_html=True)
 
-    if st.button("Simular Escenario de Riesgo", type="primary", use_container_width=True):
-        st.info("La lógica visual del Dashboard Bento se aplica de la misma forma que en la Pestaña 1. (Puedes replicar el código de visualización aquí si lo deseas expandir).")
-        # Aquí puedes copiar/pegar fácilmente el bloque "INICIO DEL BENTO GRID" si quieres que el simulador manual también dibuje todo.
+    if st.button("🧪 Evaluar Simulación Manual", type="primary", use_container_width=True):
+        data_manual = {
+            'soil_moisture_%': s_moisture, 'soil_pH': s_ph, 'temperature_C': temp,
+            'rainfall_mm': rain, 'humidity_%': 50.0, 'sunlight_hours': 8.0,
+            'NDVI_index': ndvi, 'total_days': days, 'irrigation_type': irrigation, 'crop_disease_status': disease
+        }
+        input_df = pd.DataFrame([data_manual])
+        input_ml = pd.get_dummies(input_df, columns=['irrigation_type', 'crop_disease_status'], drop_first=False)
+        input_ml = input_ml.reindex(columns=columnas_ml, fill_value=0)
+        
+        yield_pred = modelo_rf.predict(input_ml)[0]
+        score, decision, badge_style, dscr, revenue = calcular_credit_score(yield_pred, loan_manual, ndvi, disease)
+        
+        st.write("")
+        col_res1, col_res2, col_res3 = st.columns([1.2, 1, 1.1])
+        with col_res1:
+            st.markdown('<div class="card-light" style="text-align: center;">', unsafe_allow_html=True)
+            st.markdown('<div class="section-header">Score Crediticio</div>', unsafe_allow_html=True)
+            st.plotly_chart(plot_gauge_score(score), use_container_width=True)
+            st.markdown(f'<span class="{badge_style}">{decision}</span>', unsafe_allow_html=True)
+            st.markdown('</div>', unsafe_allow_html=True)
+
+        with col_res2:
+            st.markdown('<div class="card-light">', unsafe_allow_html=True)
+            st.markdown('<div class="section-header">Proyección Financiera</div>', unsafe_allow_html=True)
+            st.metric("Rendimiento Estimado", f"{yield_pred:,.1f} kg/ha")
+            st.metric("Ingreso Neto Estimado", f"${revenue:,.2f} USD")
+            st.metric("Cobertura (DSCR)", f"{dscr:.2f}x")
+            st.markdown('</div>', unsafe_allow_html=True)
+
+        with col_res3:
+            st.markdown('<div class="card-light">', unsafe_allow_html=True)
+            st.markdown('<div class="section-header">Radar Agrónomo</div>', unsafe_allow_html=True)
+            st.plotly_chart(plot_radar_agronomo(ndvi, s_moisture, disease, irrigation), use_container_width=True)
+            st.markdown('</div>', unsafe_allow_html=True)
