@@ -495,6 +495,19 @@ def responder_chat_copiloto(historial_mensajes, farm_id, farm_data, fin_data, be
 
 def renderizar_sidebar_copiloto(farm_id, farm_data, fin, bench, yield_pred, tasa_interes):
     """Renderiza el Sidebar del Chatbot con contexto dinámico."""
+    # 🎨 Inyección de CSS para ensanchar el Sidebar del chatbot
+    st.markdown(
+        """
+        <style>
+            /* Cambia el ancho mínimo y máximo del sidebar */
+            [data-testid="stSidebar"] {
+                min-width: 480px !important;
+                max-width: 520px !important;
+            }
+        </style>
+        """,
+        unsafe_allow_html=True
+    )
     with st.sidebar:
         st.title("🤖 Copiloto de Riesgo IA")
         st.caption(f"Asistente en vivo para **{farm_id}** ({farm_data['crop_type']})")
