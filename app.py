@@ -407,9 +407,11 @@ with st.container(border=True):
     c8.metric("🧪 pH del Suelo", f"{farm_data.get('soil_pH', 'N/A')}")
     c9.metric("🚿 Sistema Riego", str(farm_data.get('irrigation_type', 'N/A')))
 
-    st.markdown("**🌱 Recomendaciones Agronómicas Específicas:**")
-    for reco in bench['recomendaciones']:
-        st.write(f"• {reco}")
+
+# ✅ MODIFICACIÓN: Desplegable opcional para las recomendaciones agronómicas
+    with st.expander("🌱 Ver Recomendaciones Agronómicas Específicas"):
+        for reco in bench['recomendaciones']:
+            st.write(f"• {reco}")
 
 # Estimación de Rendimiento
 if modelo_rf is not None and columnas_ml is not None:
@@ -437,6 +439,32 @@ m3.metric("Costos Operativos Fijos", f"${fin['total_costos_operativos']:,.2f} US
 m4.metric("TOTAL A DEVOLVER", f"${fin['total_a_devolver']:,.2f} USD", delta="Obligación Exigible", delta_color="inverse")
 m5.metric("Retorno Neto Agricultor", f"${fin['retorno_neto_usd']:,.2f} USD", f"{fin['retorno_neto_pct']:.1f}% Margen")
 
+# ✅ MODIFICACIÓN: Explicación y cálculo transparente de Retorno Bruto y Neto
+with st.container(border=True):
+    st.markdown("#### 🌾 ¿Cómo se calcula la ganancia del agricultor?")
+    
+    col_ret1, col_ret2 = st.columns(2)
+    
+    with col_ret1:
+        st.markdown(f"""
+        **1. Ingreso Bruto Proyectado (Ventas de Cosecha)**
+        * **Rendimiento Estimado:** `{yield_pred:,.1f} kg/ha`
+        * **Precio Base Estimado:** `${bench['precio_base_kg']:,.2f} USD/kg`
+        * **Fórmula:** `Rendimiento × Precio Base`
+        
+        👉 **Ingreso Bruto Total:** **`${fin['ingreso_bruto']:,.2f} USD`**
+        """)
+        
+    with col_ret2:
+        st.markdown(f"""
+        **2. Retorno Neto Estimado (Ganancia Limpia)**
+        * **(+) Ingreso Bruto:** `${fin['ingreso_bruto']:,.2f} USD`
+        * **(-) Costos de Producción (OPEX):** `${fin['opex_produccion']:,.2f} USD`
+        * **(-) Crédito Total a Devolver:** `${fin['total_a_devolver']:,.2f} USD`
+        
+        👉 **Ganancia Neta Final:** **`${fin['retorno_neto_usd']:,.2f} USD`** *(Margen: {fin['retorno_neto_pct']:.1f}%)*
+        """)
+        
 # Desglose transparente en tabla rápida
 st.markdown("""
 | Concepto | Porcentaje / Tasa | Monto USD |
