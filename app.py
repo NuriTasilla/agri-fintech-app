@@ -420,27 +420,92 @@ def consultar_agente_gemini(prompt_texto, fin_data, bench, farm_id, farm_data, y
     return generar_fallback_local_report(fin_data, bench, farm_id, farm_data, yield_pred)
     
 # ---------------------------------------------------------
-# 7. Sidebar: Chatbot Copiloto para el Analista
+# 7. Motor Inteligente del Chatbot Copiloto
 # ---------------------------------------------------------
-with st.sidebar:
-    st.title("🤖 Chatbot Copiloto")
-    st.caption("Asistente en tiempo real para estructuración y análisis de crédito agrícola.")
-    
-    if "messages" not in st.session_state:
-        st.session_state.messages = [
-            {"role": "assistant", "content": "¡Hola! Soy tu Copiloto CoFundo. ¿En qué te ayudo a evaluar o reestructurar este expediente crediticio?"}
-        ]
+def responder_chat_copiloto(historial_mensajes, farm_id, farm_data, fin_data, bench, yield_pred, tasa_interes):
+    """Genera respuestas inteligentes y contextualizadas a la parcela activa usando Gemini."""
+    if not api_key:
+        return "⚠️ **API Key no configurada:** Por favor agrega `GEMINI_API_KEY` en tus `st.secrets` para activar la IA en vivo."
+
+    # Inyección del expediente completo en el System Prompt
+    system_prompt = f"""
+    Eres CoFundo Copilot, un analista experto en riesgo crediticio agropecuario y estructuración financiera.
+    Estás asistiendo en tiempo real al oficial de crédito que evalúa la siguiente parcela activa:
+
+    FICHA TÉCNICA Y FINANCIERA EN TIEMPO REAL:
+    - ID Parcela: {farm_id} | Región: {farm_data.get('region', 'N/A')} | Cultivo: {farm_data['crop_type']}
+    - Telemetría IoT: NDVI = {farm_data['NDVI_index']:.2f}, Humedad = {farm_data.get('soil_moisture_%', 'N/A')}%, Temp = {farm_data.get('temperature_C', 'N/A')}°C
+    - Estado Fitosanitario: {farm_data['crop_disease_status']}
+    - Crédito Solicitado: ${fin_data['capital']:,.2f} USD | Total a Devolver: ${fin_data['total_a_devolver']:,.2f} USD (Tasa: {tasa_interes}%)
+    - Métricas Riesgo: DSCR Base = {fin_data['dscr']:.2f}x | Credit Score = {fin_data['score']}/850 ({fin_data['sugerencia']})
+    - Ganancia Neta Productor: ${fin_data['retorno_neto_usd']:,.2f} USD (Margen: {fin_data['retorno_neto_pct']:.1f}%)
+    - Productividad Estimada ML: {yield_pred:,.1f} kg/ha | Precio Base: ${bench['precio_base_kg']:,.2f} USD/kg
+
+    INSTRUCCIONES:
+    - Responde de forma concisa, profesional y técnica en español (máximo 2 párrafos cortos o viñetas).
+    - Argumenta utilizando siempre los datos específicos citados arriba.
+    - Si te piden reestructurar, sugiere ajustes concretos en el monto, tasa de interés o garantías.
+    """
+
+    try:
+        model = genai.GenerativeModel(
+            model_name='gemini-1.5-flash',
+            system_instruction=system_prompt
+        )
         
-    for msg in st.session_state.messages:
-        st.chat_message(msg["role"]).write(msg["content"])
+        history_gemini = []
+        for m in historial_mensajes[:-1]:
+            role = "user" if m["role"] == "user" else "model"
+            history_gemini.append({"role": role, "parts": [m["content"]]})
+
+        chat = model.start_chat(history=history_gemini)
+        respuesta = chat.send_message(historial_mensajes[-1]["content"])
+        return respuesta.text
+    except Exception as e:
+        return f"❌ Ocurrió un inconveniente al consultar con el Copiloto: {str(e)}"
+
+
+def renderizar_sidebar_copiloto(farm_id, farm_data, fin, bench, yield_pred, tasa_interes):
+    """Renderiza el Sidebar del Chatbot con contexto dinámico."""
+    with st.sidebar:
+        st.title("🤖 Copiloto de Riesgo IA")
+        st.caption(f"Asistente en vivo para **{farm_id}** ({farm_data['crop_type']})")
         
-    if user_input := st.chat_input("Escribe tu consulta..."):
-        st.session_state.messages.append({"role": "user", "content": user_input})
-        st.chat_message("user").write(user_input)
+        # Botones de consulta rápida
+        st.markdown("**💡 Consultas Rápidas:**")
+        cq1, cq2 = st.columns(2)
+        preg_rapida = None
+        with cq1:
+            if st.button("❓ ¿Es viable?", use_container_width=True):
+                preg_rapida = "¿Cuáles son los mayores riesgos de aprobar este crédito y cómo los mitigamos?"
+        with cq2:
+            if st.button("🔄 Reestructurar", use_container_width=True):
+                preg_rapida = "¿Cómo reestructurar el crédito si el rendimiento cae un 20%?"
+
+        if "messages" not in st.session_state:
+            st.session_state.messages = [
+                {"role": "assistant", "content": f"¡Hola! Soy tu Copiloto CoFundo. Tengo en pantalla la parcela **{farm_id}** ({farm_data['crop_type']}). ¿En qué te ayudo a evaluar esta operación?"}
+            ]
+            
+        for msg in st.session_state.messages:
+            st.chat_message(msg["role"]).write(msg["content"])
+            
+        user_input = st.chat_input("Pregunta al copiloto...")
         
-        respuesta = f"Entendido. Respecto a tu consulta sobre '{user_input}': Recuerda que si el DSCR es inferior a 1.25x o la condición fitosanitaria es desfavorable, es altamente recomendable solicitar la Estrategia A (reducción de capital) o exigir la cobertura de seguro paramétrico al 100%."
-        st.session_state.messages.append({"role": "assistant", "content": respuesta})
-        st.chat_message("assistant").write(respuesta)
+        if preg_rapida:
+            user_input = preg_rapida
+
+        if user_input:
+            st.session_state.messages.append({"role": "user", "content": user_input})
+            st.chat_message("user").write(user_input)
+            
+            with st.spinner("Analizando expediente con Gemini..."):
+                respuesta_ia = responder_chat_copiloto(
+                    st.session_state.messages, farm_id, farm_data, fin, bench, yield_pred, tasa_interes
+                )
+            
+            st.session_state.messages.append({"role": "assistant", "content": respuesta_ia})
+            st.rerun()
 
 # ---------------------------------------------------------
 # 8. Panel Principal: Selección e Insumos
@@ -493,6 +558,8 @@ fin = calcular_financiamiento_detallado(
     farm_data['crop_type'], capital_req, tasa_interes, yield_pred, farm_data['NDVI_index'], farm_data['crop_disease_status']
 )
 
+# Llama a la barra lateral pasándole los datos ya calculados de la parcela
+renderizar_sidebar_copiloto(farm_id, farm_data, fin, bench, yield_pred, tasa_interes)
 st.markdown("---")
 
 # ---------------------------------------------------------
