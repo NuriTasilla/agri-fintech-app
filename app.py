@@ -494,8 +494,8 @@ def responder_chat_copiloto(historial_mensajes, farm_id, farm_data, fin_data, be
     return "❌ No se pudo conectar con la API de Gemini. Verifica que tu API Key esté activa en Google AI Studio."
 
 def renderizar_sidebar_copiloto(farm_id, farm_data, fin, bench, yield_pred, tasa_interes):
-    """Renderiza el Sidebar del Chatbot con contexto dinámico."""
-    st.markdown(
+    # 🎨 CSS Inteligente: Ancho personalizado SOLO cuando está expandido
+st.markdown(
     """
     <style>
         /* Modifica el ancho únicamente cuando la barra lateral está ABIERTA */
@@ -505,6 +505,8 @@ def renderizar_sidebar_copiloto(farm_id, farm_data, fin, bench, yield_pred, tasa
         }
     </style>
     """,
+    unsafe_allow_html=True
+)
         
     with st.sidebar:
         st.title("🤖 Copiloto de Riesgo IA")
