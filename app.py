@@ -423,13 +423,22 @@ def consultar_agente_gemini(prompt_texto, fin_data, bench, farm_id, farm_data, y
 # 7. Motor Inteligente del Chatbot Copiloto
 # ---------------------------------------------------------
 def responder_chat_copiloto(historial_mensajes, farm_id, farm_data, fin_data, bench, yield_pred, tasa_interes):
-    """Genera respuestas inteligentes con tolerancia a fallos de modelo y compatibilidad de API."""
+    """Genera respuestas del chatbot garantizando autenticación y autodetectando modelos disponibles."""
+    
+    # 1. Obtener y verificar la API Key
+    api_key = st.secrets.get("GEMINI_API_KEY", None) or os.environ.get("GEMINI_API_KEY", None)
     if not api_key:
-        return "⚠️ **API Key no configurada:** Por favor agrega `GEMINI_API_KEY` en tus `st.secrets` para activar la IA en vivo."
+        return "⚠️ **API Key no configurada:** Agrega `GEMINI_API_KEY` en tus `secrets.toml` para activar el copiloto."
 
-    # Contexto técnico y financiero de la parcela activa
+    # 2. Autenticar la librería
+    try:
+        genai.configure(api_key=api_key)
+    except Exception as e:
+        return f"❌ Error al configurar la API Key: {str(e)}"
+
+    # 3. Contexto técnico y financiero de la parcela
     contexto_sistema = f"""
-    [INSTRUCCIONES DE SISTEMA DE COFUNDO COPILOT]
+    [INSTRUCCIONES DE COFUNDO COPILOT]
     Eres CoFundo Copilot, un analista experto en riesgo crediticio agropecuario y estructuración financiera.
     Estás asistiendo en tiempo real al oficial de crédito que evalúa la siguiente parcela activa:
 
@@ -448,38 +457,41 @@ def responder_chat_copiloto(historial_mensajes, farm_id, farm_data, fin_data, be
     - Si te preguntan sobre la caída de precio (-20%), explica que el DSCR cae a {fin_data['dscr_p20']:.2f}x y sugiere estrategias de mitigación.
     """
 
-    # Lista de nombres de modelo a probar en orden de preferencia
-    modelos_a_probar = [
-        'gemini-1.5-flash-latest',
-        'gemini-1.5-flash',
-        'gemini-2.0-flash',
-        'gemini-1.5-pro-latest',
-        'gemini-1.5-pro'
-    ]
-
     pregunta_usuario = historial_mensajes[-1]["content"]
-    prompt_con_contexto = f"{contexto_sistema}\n\nPregunta del analista: {pregunta_usuario}"
+    prompt_completo = f"{contexto_sistema}\n\nPregunta del analista: {pregunta_usuario}"
 
-    for nombre_modelo in modelos_a_probar:
+    # 4. Descubrimiento dinámico del modelo disponible en tu API Key
+    candidatos_modelo = []
+    try:
+        modelos_remotos = [
+            m.name for m in genai.list_models() 
+            if 'generateContent' in m.supported_generation_methods
+        ]
+        # Priorizar modelos rápidos de Gemini
+        for objetivo in ['models/gemini-1.5-flash', 'models/gemini-1.5-pro', 'models/gemini-1.0-pro']:
+            if objetivo in modelos_remotos:
+                candidatos_modelo.append(objetivo)
+        
+        # Añadir resto de modelos encontrados
+        candidatos_modelo.extend(modelos_remotos)
+    except Exception:
+        pass
+
+    # Modelos por defecto en caso de fallback
+    if not candidatos_modelo:
+        candidatos_modelo = ['gemini-1.5-flash', 'gemini-1.5-pro', 'gemini-pro']
+
+    # 5. Intento de generación con el primer modelo funcional
+    for nombre_mod in candidatos_modelo:
         try:
-            # Intento 1: Usando system_instruction
-            try:
-                model = genai.GenerativeModel(
-                    model_name=nombre_modelo,
-                    system_instruction=contexto_sistema
-                )
-                respuesta = model.generate_content(pregunta_usuario)
-                return respuesta.text
-            except Exception:
-                # Intento 2: Inyectando el contexto directamente en el prompt (mayor compatibilidad)
-                model = genai.GenerativeModel(model_name=nombre_modelo)
-                respuesta = model.generate_content(prompt_con_contexto)
+            model = genai.GenerativeModel(nombre_mod)
+            respuesta = model.generate_content(prompt_completo)
+            if respuesta and respuesta.text:
                 return respuesta.text
         except Exception:
             continue
 
-    return "❌ No se pudo conectar con los modelos de Gemini disponibles. Verifica la cuota de tu API Key o actualiza el paquete `google-generativeai` en `requirements.txt`."
-
+    return "❌ No se pudo conectar con la API de Gemini. Verifica que tu API Key esté activa en Google AI Studio."
 
 def renderizar_sidebar_copiloto(farm_id, farm_data, fin, bench, yield_pred, tasa_interes):
     """Renderiza el Sidebar del Chatbot con contexto dinámico."""
