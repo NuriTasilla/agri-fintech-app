@@ -284,63 +284,131 @@ def fig_radar_riesgo(ndvi, dscr_val, disease_status):
 # ---------------------------------------------------------
 # 6. Generación de Informes & Fallback para Gemini
 # ---------------------------------------------------------
-def generar_fallback_local_report(fin_data, bench, farm_id, farm_data):
-    """Genera un informe ejecutivo robusto analizando el impacto de riesgos en la decisión final."""
-    
-    # Análisis de sensibilidad de la decisión según DSCR en estrés
-    impacto_decision = ""
-    if fin_data['dscr_seq'] < 1.0 or fin_data['dscr_p20'] < 1.0:
-        impacto_decision = "⚠️ **RIESGO ELEVADO DE INCUMPLIMIENTO:** Ante escenarios de sequía o caída de precio, la cobertura de deuda cae por debajo de 1.0x (insolvencia). Se **recomienda condicionalidad obligatoria**: aplicar la Estrategia A (reducir capital) o exigir seguro paramétrico al 100% antes de desembolsar."
-    else:
-        impacto_decision = "✅ **RESILIENCIA FINANCIERA ADECUADA:** El crédito soporta fluctuaciones moderadas. Se recomienda **Aprobación Estándar** manteniendo el monitoreo satelital continuo."
+# ---------------------------------------------------------
+# Generación de Informes Senior e Integración con Gemini IA
+# ---------------------------------------------------------
 
-    markdown_content = f"""# 📋 Informe de Auditoría de Riesgo, Escenarios y Gobernanza
+def construir_prompt_senior_ia(fin_data, bench, farm_id, farm_data, yield_pred):
+    """Construye un prompt de alta precisión para que el LLM actúe como un Director de Riesgo Agrícola Senior."""
+    
+    precio_base = bench['precio_base_kg']
+    ingreso_minimo_requerido = fin_data['total_a_devolver'] + fin_data['opex_produccion']
+    precio_breakeven = ingreso_minimo_requerido / max(1.0, yield_pred)
+    rendimiento_breakeven = ingreso_minimo_requerido / max(0.01, precio_base)
+
+    prompt = f"""
+    Actúa como un Vicepresidente Senior de Riesgo Crediticio Agropecuario y Estructuración Financiera en un fondo AgTech internacional.
+    Debes generar un dictamen de auditoría crediticia en formato JSON con la única clave "informe_auditoria_markdown".
+
+    DATOS DE LA PARCELA Y CLIENTE:
+    - ID Parcela: {farm_id}
+    - Región / Localización: {farm_data.get('region', 'N/A')}
+    - Cultivo: {farm_data['crop_type']}
+    - Telemetría IoT / Satelital: NDVI = {farm_data['NDVI_index']}, Humedad Suelo = {farm_data.get('soil_moisture_%', 'N/A')}%, Lluvia Acumulada = {farm_data.get('rainfall_mm', 'N/A')} mm, pH = {farm_data.get('soil_pH', 'N/A')}, Temp = {farm_data.get('temperature_C', 'N/A')}°C
+    - Estado Fitosanitario: {farm_data['crop_disease_status']}
+    - Riego: {farm_data.get('irrigation_type', 'N/A')}
+
+    MÉTRICAS FINANCIERAS BASE:
+    - Capital Solicitado: ${fin_data['capital']:,.2f} USD
+    - Intereses (6 meses): ${fin_data['interes_monto']:,.2f} USD
+    - Costos Operativos Crédito: ${fin_data['total_costos_operativos']:,.2f} USD
+    - Monto Total a Devolver: ${fin_data['total_a_devolver']:,.2f} USD
+    - Rendimiento Estimado ML: {yield_pred:,.1f} kg/ha
+    - Precio Base Mercado: ${precio_base:,.2f} USD/kg
+    - Ingreso Bruto Proyectado: ${fin_data['ingreso_bruto']:,.2f} USD
+    - OPEX Producción: ${fin_data['opex_produccion']:,.2f} USD
+    - Ganancia Neta Agricultor: ${fin_data['retorno_neto_usd']:,.2f} USD (Margen: {fin_data['retorno_neto_pct']:.1f}%)
+    - DSCR Base: {fin_data['dscr']:.2f}x
+    - Credit Score IA: {fin_data['score']}/850 ({fin_data['sugerencia']})
+    - Precio Mínimo Equilibrio (DSCR=1.0x): ${precio_breakeven:,.2f} USD/kg
+    - Rendimiento Mínimo Equilibrio (DSCR=1.0x): {rendimiento_breakeven:,.1f} kg/ha
+
+    INSTRUCCIONES DE ESTRUCTURA DEL INFORME (Markdown Senior):
+    Genera un informe institucional exhaustivo con las siguientes 5 secciones:
+
+    1. 🎯 Executive Risk Summary & Credit Scoring
+       - Dictamen formal, DSCR base, Credit Score y evaluación del margen de seguridad financiero.
+    2. 🌿 Radiografía Agronómica y Análisis de Vulnerabilidad Regional
+       - Análisis del impacto del clima, región ({farm_data.get('region', 'N/A')}), tipo de cultivo ({farm_data['crop_type']}) y métricas IoT (NDVI, humedad, plagas).
+    3. ⚖️ Análisis de Punto de Equilibrio (Breakeven & Stress Margins)
+       - Explicación de los límites de tolerancia antes del impago (Precio y Rendimiento Mínimo).
+    4. 🌩️ Matriz de Estrés Dinámica por Región y Cultivo (AI-Generated Stress Testing)
+       - Genera 3 ESCENARIOS DE ESTRÉS ESPECÍFICOS para {farm_data['crop_type']} en la región {farm_data.get('region', 'N/A')} (ej. sequía regional, plaga focalizada, caída de precio internacional o shock de insumos).
+       - Para CADA escenario debes incluir:
+         * Nombre del Evento y Probabilidad
+         * Caída estimada en DSCR y Margen del Agricultor
+         * **ACCIÓN DE MITIGACIÓN SUGERIDA** (ej. contrato futures, seguro paramétrico, fondo de reserva, desembolsos parciales).
+    5. 🛡️ Dictamen de Gobernanza y Convenios Binding (Covenants & Disbursement Rules)
+       - 3 a 4 cláusulas obligatorias que el analista debe exigir antes de desembolsar la firma del contrato.
+
+    Utiliza formato Markdown profesional, tablas, negritas y bloques de citas. Sé riguroso, analítico y técnico.
+    """
+    return prompt
+
+
+def generar_fallback_local_report(fin_data, bench, farm_id, farm_data, yield_pred):
+    """Fallback robusto institucional en caso de no conectar con la API de IA."""
+    precio_base = bench['precio_base_kg']
+    ingreso_minimo = fin_data['total_a_devolver'] + fin_data['opex_produccion']
+    precio_breakeven = ingreso_minimo / max(1.0, yield_pred)
+    rendimiento_breakeven = ingreso_minimo / max(0.01, precio_base)
+
+    markdown_content = f"""# 📋 Auditoría de Riesgo Crediticio e Informe de Gobernanza
 **CoFundo Credit Cockpit** | Parcela: **{farm_id}** | Región: **{farm_data.get('region', 'N/A')}** | Cultivo: **{farm_data['crop_type']}**
 
 ---
 
-### 1. Resumen Ejecutivo
-* **Sugerencia del Motor IA:** **{fin_data['sugerencia']}** (Credit Score: **{fin_data['score']}/850**)
-* **Estructura Financiera:** Capital de **${fin_data['capital']:,.2f} USD** + Intereses (**${fin_data['interes_monto']:,.2f} USD**) + Costos Operativos (**${fin_data['total_costos_operativos']:,.2f} USD**).
-* **Monto Total Exigible a Devolver:** **${fin_data['total_a_devolver']:,.2f} USD**.
-* **Retorno Neto Proyectado del Agricultor:** **${fin_data['retorno_neto_usd']:,.2f} USD** (Margen del {fin_data['retorno_neto_pct']:.1f}%).
+### 1. 🎯 Executive Risk Summary & Credit Scoring
+* **Dictamen Algorítmico:** **{fin_data['sugerencia']}** (Credit Score: **{fin_data['score']}/850**)
+* **Ratio de Cobertura de Deuda (DSCR Base):** **{fin_data['dscr']:.2f}x** *(Capacidad de pago de la cosecha)*
+* **Estructura de la Obligación Financiera:**
+  * Capital Prestado: **${fin_data['capital']:,.2f} USD**
+  * Costo Financiero (Intereses 6m): **${fin_data['interes_monto']:,.2f} USD**
+  * Gastos Operativos (Estructuración/Seguro/Reserva): **${fin_data['total_costos_operativos']:,.2f} USD**
+  * **Exigible Total a Devolver:** **${fin_data['total_a_devolver']:,.2f} USD**
+* **Retorno Neto Proyectado del Productor:** **${fin_data['retorno_neto_usd']:,.2f} USD** (Margen Neto: **{fin_data['retorno_neto_pct']:.1f}%**)
 
 ---
 
-### 2. Cuadro Integrado de Devolución
-| Concepto | Monto (USD) | % del Capital | Impacto Financiero |
+### 2. 🌿 Radiografía Agronómica y Vulnerabilidad Regional ({farm_data.get('region', 'N/A')})
+| Métrica Evaluada | Valor Medido | Parámetro Esperado | Evaluación de Riesgo |
 | :--- | :--- | :--- | :--- |
-| **Capital Solicitado** | ${fin_data['capital']:,.2f} | 100.0% | Principal prestado |
-| **Intereses Generados** | ${fin_data['interes_monto']:,.2f} | {(fin_data['interes_monto']/fin_data['capital']*100):.1f}% | Costo de financiamiento (6 meses) |
-| **Costos Operativos (Estructuración/Seguro/Reserva)** | ${fin_data['total_costos_operativos']:,.2f} | {(fin_data['total_costos_operativos']/fin_data['capital']*100):.1f}% | Gastos fijos institucionales |
-| **TOTAL A DEVOLVER** | **${fin_data['total_a_devolver']:,.2f}** | **{(fin_data['total_a_devolver']/fin_data['capital']*100):.1f}%** | **Deuda Total Contratada** |
+| **Índice Vigor (NDVI)** | **{farm_data['NDVI_index']:.2f}** | > 0.65 | Desarrollo vegetativo adecuado |
+| **Rendimiento Estimado** | **{yield_pred:,.1f} kg/ha** | Promedio Regional | Productividad dentro de rango base |
+| **Humedad y Clima** | **{farm_data.get('soil_moisture_%', 'N/A')}% Suelo** | 40% - 60% | Balance hídrico monitoreado |
+| **Fitosanidad** | **{farm_data['crop_disease_status']}** | Sin plaga severa | Riesgo controlado por telemetría |
 
 ---
 
-### 3. Evaluación de Escenarios de Riesgo y Pruebas de Estrés (Stress Testing)
-Si las condiciones de mercado o clima empeoran, la capacidad de pago cambia significativamente:
-
-1. **Escenario Caída de Precio (-20% en Mercado):**
-   * El DSCR baja de **{fin_data['dscr']:.2f}x** a **{fin_data['dscr_p20']:.2f}x**.
-   * *Impacto:* Reducción directa en el flujo de caja operativo del agricultor.
-2. **Escenario Sequía Severa (-30% en Rendimiento de Cosecha):**
-   * El DSCR cae a **{fin_data['dscr_seq']:.2f}x**.
-   * *Impacto:* Riesgo alto de pérdida parcial de la cosecha si el NDVI cae de **{farm_data['NDVI_index']}**.
-3. **Escenario Incremento de Insumos / Fertilizantes (+15% OPEX):**
-   * El DSCR se ajusta a **{fin_data['dscr_ins']:.2f}x**.
+### 3. ⚖️ Análisis de Punto de Equilibrio y Margen de Seguridad
+* **Precio Mínimo de Equilibrio:** El precio del **{farm_data['crop_type']}** puede caer de **${precio_base:,.2f} USD/kg** hasta **${precio_breakeven:,.2f} USD/kg** (caída máx: {((precio_base-precio_breakeven)/precio_base*100):.1f}%) sin entrar en insolvencia (DSCR < 1.0x).
+* **Rendimiento Mínimo de Equilibrio:** La parcela debe cosechar al menos **{rendimiento_breakeven:,.1f} kg/ha** para cubrir el costo operativo y el crédito.
 
 ---
 
-### 4. Recomendación Formal para la Decisión Final (Human-in-the-Loop)
-{impacto_decision}
+### 4. 🌩️ Matriz de Estrés Regional y Estrategias de Mitigación
+| Escenario de Estrés | Impacto Financiero | DSCR Ajustado | Acción Mitigadora Sugerida |
+| :--- | :--- | :--- | :--- |
+| **Caída de Precio (-20%)** | Caída en ingreso bruto | **{fin_data['dscr_p20']:.2f}x** | Cobertura de precio mediante contrato de opción en Bolsa o venta futura. |
+| **Evento Climático / Sequía (-30% Rendimiento)** | Pérdida parcial de cosecha | **{fin_data['dscr_seq']:.2f}x** | Exigir póliza de seguro paramétrico indexada al NDVI antes del desembolso. |
+| **Shock Inflacionario Insumos (+15% OPEX)** | Reducción de margen neto | **{fin_data['dscr_ins']:.2f}x** | Desembolso directo a proveedores autorizados de insumos. |
+
+---
+
+### 5. 🛡️ Dictamen de Gobernanza y Convenios (Covenants)
+> **DISPOSICIONES OBLIGATORIAS PARA EL ANALISTA DE CRÉDITO:**
+> 1. Registro formal de garantía prendaria sobre la cosecha de {farm_data['crop_type']}.
+> 2. Desembolso fraccionado en 2 ministraciones sujeto a la validación satelital del NDVI.
+> 3. Verificación de contrato de seguro activo contra eventos hidrometeorológicos.
 """
     return {"informe_auditoria_markdown": markdown_content}
 
-def consultar_agente_gemini(prompt_texto, fin_data, bench, farm_id, farm_data):
+
+def consultar_agente_gemini(prompt_texto, fin_data, bench, farm_id, farm_data, yield_pred):
     if not api_key:
-        return generar_fallback_local_report(fin_data, bench, farm_id, farm_data)
+        return generar_fallback_local_report(fin_data, bench, farm_id, farm_data, yield_pred)
         
-    modelos = ['gemini-1.5-flash', 'gemini-1.5-pro']
+    modelos = ['gemini-1.5-pro', 'gemini-1.5-flash']
     for mod in modelos:
         try:
             model = genai.GenerativeModel(mod, generation_config={"response_mime_type": "application/json"})
@@ -349,8 +417,8 @@ def consultar_agente_gemini(prompt_texto, fin_data, bench, farm_id, farm_data):
         except Exception:
             continue
             
-    return generar_fallback_local_report(fin_data, bench, farm_id, farm_data)
-
+    return generar_fallback_local_report(fin_data, bench, farm_id, farm_data, yield_pred)
+    
 # ---------------------------------------------------------
 # 7. Sidebar: Chatbot Copiloto para el Analista
 # ---------------------------------------------------------
