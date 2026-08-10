@@ -43,6 +43,32 @@ st.markdown("""
 """, unsafe_allow_html=True)
 
 # ---------------------------------------------------------
+# Diagnóstico de Parcela (Datos Ampliados y Telemetría IoT)
+# ---------------------------------------------------------
+with st.container(border=True):
+    st.subheader(f"📍 Parcela {farm_id} ({farm_data.get('region', 'N/A')}) — Telemetría Agronómica Integrada")
+    
+    # Fila 1: Datos de Cultivo, Monitoreo y Vigor
+    c1, c2, c3, c4 = st.columns([1, 1.8, 1, 1])
+    c1.metric("Cultivo", str(farm_data['crop_type']))
+    c2.metric("🗓️ Periodo de Monitoreo", bench['periodo_captura'])
+    c3.metric("Vigor (NDVI)", f"{farm_data['NDVI_index']:.2f}")
+    c4.metric("Estado Fitosanitario", str(farm_data['crop_disease_status']))
+
+    # Fila 2: Condiciones Meteorológicas y de Suelo
+    c5, c6, c7, c8, c9 = st.columns(5)
+    c5.metric("🌡️ Temperatura", f"{farm_data.get('temperature_C', 'N/A')} °C")
+    c6.metric("💧 Humedad Suelo", f"{farm_data.get('soil_moisture_%', 'N/A')}%")
+    c7.metric("🌧️ Lluvia Acumulada", f"{farm_data.get('rainfall_mm', 'N/A')} mm")
+    c8.metric("🧪 pH del Suelo", f"{farm_data.get('soil_pH', 'N/A')}")
+    c9.metric("🚿 Sistema Riego", str(farm_data.get('irrigation_type', 'N/A')))
+
+    st.markdown("**🌱 Recomendaciones Agronómicas Específicas:**")
+    for reco in bench['recomendaciones']:
+        st.write(f"• {reco}")
+        
+
+# ---------------------------------------------------------
 # 2. Benchmarks y Parámetros Estándar por Cultivo
 # ---------------------------------------------------------
 DEFAULT_BENCHMARK = {
@@ -283,15 +309,25 @@ def fig_radar_riesgo(ndvi, dscr_val, disease_status):
 # 6. Generación de Informes & Fallback para Gemini
 # ---------------------------------------------------------
 def generar_fallback_local_report(fin_data, bench, farm_id, farm_data):
-    markdown_content = f"""# 📋 Informe Integrado de Auditoría de Riesgo y Gobernanza
-**CoFundo Credit Cockpit** | Caso: **{farm_id}** | Cultivo: **{farm_data['crop_type']}**
+"""Genera un informe ejecutivo robusto analizando el impacto de riesgos en la decisión final."""
+    
+    # Análisis de sensibilidad de la decisión según DSCR en estrés
+    impacto_decision = ""
+    if fin_data['dscr_seq'] < 1.0 or fin_data['dscr_p20'] < 1.0:
+        impacto_decision = "⚠️ **RIESGO ELEVADO DE INCUMPLIMIENTO:** Ante escenarios de sequía o caída de precio, la cobertura de deuda cae por debajo de 1.0x (insolvencia). Se **recomienda condicionalidad obligatoria**: aplicar la Estrategia A (reducir capital) o exigir seguro paramétrico al 100% antes de desembolsar."
+    else:
+        impacto_decision = "✅ **RESILIENCIA FINANCIERA ADECUADA:** El crédito soporta fluctuaciones moderadas. Se recomienda **Aprobación Estándar** manteniendo el monitoreo satelital continuo."
+
+    markdown_content = f"""# 📋 Informe de Auditoría de Riesgo, Escenarios y Gobernanza
+**CoFundo Credit Cockpit** | Parcela: **{farm_id}** | Región: **{farm_data.get('region', 'N/A')}** | Cultivo: **{farm_data['crop_type']}**
 
 ---
 
 ### 1. Resumen Ejecutivo
-Dictamen institucional evaluado mediante el motor algorítmico de CoFundo. La recomendación algorítmica es **{fin_data['sugerencia']}** con un score crediticio de **{fin_data['score']}/850**. La estructura financiera requiere una devolución total de **${fin_data['total_a_devolver']:,.2f} USD**, proyectando un retorno neto para el agricultor de **${fin_data['retorno_neto_usd']:,.2f} USD** ({fin_data['retorno_neto_pct']:.1f}% de margen).
-
----
+* **Sugerencia del Motor IA:** **{fin_data['sugerencia']}** (Credit Score: **{fin_data['score']}/850**)
+* **Estructura Financiera:** Capital de **${fin_data['capital']:,.2f} USD** + Intereses (**${fin_data['interes_monto']:,.2f} USD**) + Costos Operativos (**${fin_data['total_costos_operativos']:,.2f} USD**).
+* **Monto Total Exigible a Devolver:** **${fin_data['total_a_devolver']:,.2f} USD**.
+* **Retorno Neto Proyectado del Agricultor:** **${fin_data['retorno_neto_usd']:,.2f} USD** (Margen del {fin_data['retorno_neto_pct']:.1f}%).
 
 ### 2. Cuadro de Conformación Financiera de Devolución
 | Concepto Financiero | Valor (USD) | % sobre Capital | Observación de Auditoría |
@@ -304,10 +340,22 @@ Dictamen institucional evaluado mediante el motor algorítmico de CoFundo. La re
 
 ---
 
-### 3. Pruebas de Estrés (Stress Testing)
-- **Caída 20% en Precio de Cosecha:** DSCR resultante = **{fin_data['dscr_p20']:.2f}x**
-- **Sequía Severa (-30% Rendimiento):** DSCR resultante = **{fin_data['dscr_seq']:.2f}x**
-- **Alza 15% Insumos / Fertilizantes:** DSCR resultante = **{fin_data['dscr_ins']:.2f}x**
+### 3. Evaluación de Escenarios de Riesgo y Pruebas de Estrés (Stress Testing)
+Si las condiciones de mercado o clima empeoran, la capacidad de pago cambia significativamente:
+
+1. **Escenario Caída de Precio (-20% en Mercado):**
+   * El DSCR baja de **{fin_data['dscr']:.2f}x** a **{fin_data['dscr_p20']:.2f}x**.
+   * *Impacto:* Reducción directa en el flujo de caja operativo del agricultor.
+2. **Escenario Sequía Severa (-30% en Rendimiento de Cosecha):**
+   * El DSCR cae a **{fin_data['dscr_seq']:.2f}x**.
+   * *Impacto:* Riesgo alto de pérdida parcial de la cosecha si el NDVI cae de **{farm_data['NDVI_index']}**.
+3. **Escenario Incremento de Insumos / Fertilizantes (+15% OPEX):**
+   * El DSCR se ajusta a **{fin_data['dscr_ins']:.2f}x**.
+
+---
+
+### 4. Recomendación Formal para la Decisión Final (Human-in-the-Loop)
+{impacto_decision}
 """
     return {"informe_auditoria_markdown": markdown_content}
 
@@ -391,14 +439,33 @@ fin = calcular_financiamiento_detallado(
 
 st.markdown("---")
 
-# Desglose Financiero
-st.subheader("💳 Estructura y Desglose Financiero de Devolución Total")
-d1, d2, d3, d4, d5 = st.columns(5)
-d1.metric("Capital Solicitado", f"${fin['capital']:,.2f} USD")
-d2.metric("Costos Operativos Fijos", f"${fin['total_costos_operativos']:,.2f} USD", help="Estructuración + Seguro Paramétrico + Reserva")
-d3.metric("Intereses Generados", f"${fin['interes_monto']:,.2f} USD", help="Calculado a 6 meses de plazo")
-d4.metric("TOTAL A DEVOLVER", f"${fin['total_a_devolver']:,.2f} USD", delta="Obligación Exigible", delta_color="inverse")
-d5.metric("Retorno Neto Agricultor", f"${fin['retorno_neto_usd']:,.2f} USD", f"{fin['retorno_neto_pct']:.1f}% Margen")
+# ---------------------------------------------------------
+# Estructura Financiera Completa (Capital, Intereses y Costos)
+# ---------------------------------------------------------
+st.markdown("### 💳 Estructura de Crédito, Intereses y Costos Operativos")
+
+m1, m2, m3, m4, m5 = st.columns(5)
+m1.metric("Capital Solicitado", f"${fin['capital']:,.2f} USD")
+m2.metric("Intereses Generados", f"${fin['interes_monto']:,.2f} USD", help=f"Tasa anual del {tasa_interes}% proyectada a 6 meses")
+m3.metric("Costos Operativos Fijos", f"${fin['total_costos_operativos']:,.2f} USD", help="Suma de Estructuración, Seguro y Reserva")
+m4.metric("TOTAL A DEVOLVER", f"${fin['total_a_devolver']:,.2f} USD", delta="Obligación Exigible", delta_color="inverse")
+m5.metric("Retorno Neto Agricultor", f"${fin['retorno_neto_usd']:,.2f} USD", f"{fin['retorno_neto_pct']:.1f}% Margen")
+
+# Desglose transparente en tabla rápida
+st.markdown("""
+| Concepto | Porcentaje / Tasa | Monto USD |
+| :--- | :--- | :--- |
+| **Tasa de Interés Nominal (6 meses)** | **{tasa_pct:.1f}% Anual** | **${interes:,.2f} USD** |
+| Comisión de Estructuración | {c_est_pct:.1f}% | ${c_est:,.2f} USD |
+| Seguro Agrícola Paramétrico | {c_seg_pct:.1f}% | ${c_seg:,.2f} USD |
+| Fondo Reserva de Contingencia | {c_res_pct:.1f}% | ${c_res:,.2f} USD |
+""".format(
+    tasa_pct=tasa_interes,
+    interes=fin['interes_monto'],
+    c_est_pct=bench['costo_estructuracion_pct'], c_est=fin['c_est'],
+    c_seg_pct=bench['costo_seguro_pct'], c_seg=fin['c_seg'],
+    c_res_pct=bench['costo_reserva_pct'], c_res=fin['c_res']
+))
 
 with st.expander("🔍 Ver desglose de Costos Fijos institucionales"):
     c_f1, c_f2, c_f3 = st.columns(3)
