@@ -423,12 +423,13 @@ def consultar_agente_gemini(prompt_texto, fin_data, bench, farm_id, farm_data, y
 # 7. Motor Inteligente del Chatbot Copiloto
 # ---------------------------------------------------------
 def responder_chat_copiloto(historial_mensajes, farm_id, farm_data, fin_data, bench, yield_pred, tasa_interes):
-    """Genera respuestas inteligentes y contextualizadas a la parcela activa usando Gemini."""
+    """Genera respuestas inteligentes con tolerancia a fallos de modelo y compatibilidad de API."""
     if not api_key:
         return "⚠️ **API Key no configurada:** Por favor agrega `GEMINI_API_KEY` en tus `st.secrets` para activar la IA en vivo."
 
-    # Inyección del expediente completo en el System Prompt
-    system_prompt = f"""
+    # Contexto técnico y financiero de la parcela activa
+    contexto_sistema = f"""
+    [INSTRUCCIONES DE SISTEMA DE COFUNDO COPILOT]
     Eres CoFundo Copilot, un analista experto en riesgo crediticio agropecuario y estructuración financiera.
     Estás asistiendo en tiempo real al oficial de crédito que evalúa la siguiente parcela activa:
 
@@ -444,25 +445,40 @@ def responder_chat_copiloto(historial_mensajes, farm_id, farm_data, fin_data, be
     INSTRUCCIONES:
     - Responde de forma concisa, profesional y técnica en español (máximo 2 párrafos cortos o viñetas).
     - Argumenta utilizando siempre los datos específicos citados arriba.
-    - Si te piden reestructurar, sugiere ajustes concretos en el monto, tasa de interés o garantías.
+    - Si te preguntan sobre la caída de precio (-20%), explica que el DSCR cae a {fin_data['dscr_p20']:.2f}x y sugiere estrategias de mitigación.
     """
 
-    try:
-        model = genai.GenerativeModel(
-            model_name='gemini-1.5-flash',
-            system_instruction=system_prompt
-        )
-        
-        history_gemini = []
-        for m in historial_mensajes[:-1]:
-            role = "user" if m["role"] == "user" else "model"
-            history_gemini.append({"role": role, "parts": [m["content"]]})
+    # Lista de nombres de modelo a probar en orden de preferencia
+    modelos_a_probar = [
+        'gemini-1.5-flash-latest',
+        'gemini-1.5-flash',
+        'gemini-2.0-flash',
+        'gemini-1.5-pro-latest',
+        'gemini-1.5-pro'
+    ]
 
-        chat = model.start_chat(history=history_gemini)
-        respuesta = chat.send_message(historial_mensajes[-1]["content"])
-        return respuesta.text
-    except Exception as e:
-        return f"❌ Ocurrió un inconveniente al consultar con el Copiloto: {str(e)}"
+    pregunta_usuario = historial_mensajes[-1]["content"]
+    prompt_con_contexto = f"{contexto_sistema}\n\nPregunta del analista: {pregunta_usuario}"
+
+    for nombre_modelo in modelos_a_probar:
+        try:
+            # Intento 1: Usando system_instruction
+            try:
+                model = genai.GenerativeModel(
+                    model_name=nombre_modelo,
+                    system_instruction=contexto_sistema
+                )
+                respuesta = model.generate_content(pregunta_usuario)
+                return respuesta.text
+            except Exception:
+                # Intento 2: Inyectando el contexto directamente en el prompt (mayor compatibilidad)
+                model = genai.GenerativeModel(model_name=nombre_modelo)
+                respuesta = model.generate_content(prompt_con_contexto)
+                return respuesta.text
+        except Exception:
+            continue
+
+    return "❌ No se pudo conectar con los modelos de Gemini disponibles. Verifica la cuota de tu API Key o actualiza el paquete `google-generativeai` en `requirements.txt`."
 
 
 def renderizar_sidebar_copiloto(farm_id, farm_data, fin, bench, yield_pred, tasa_interes):
