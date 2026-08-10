@@ -501,8 +501,8 @@ def renderizar_sidebar_copiloto(farm_id, farm_data, fin, bench, yield_pred, tasa
         <style>
             /* Cambia el ancho mínimo y máximo del sidebar */
             [data-testid="stSidebar"] {
-                min-width: 480px !important;
-                max-width: 520px !important;
+                min-width: 650px !important;
+                max-width: 720px !important;
             }
         </style>
         """,
