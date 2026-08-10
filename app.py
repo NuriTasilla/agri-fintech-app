@@ -43,32 +43,6 @@ st.markdown("""
 """, unsafe_allow_html=True)
 
 # ---------------------------------------------------------
-# Diagnóstico de Parcela (Datos Ampliados y Telemetría IoT)
-# ---------------------------------------------------------
-with st.container(border=True):
-    st.subheader(f"📍 Parcela {farm_id} ({farm_data.get('region', 'N/A')}) — Telemetría Agronómica Integrada")
-    
-    # Fila 1: Datos de Cultivo, Monitoreo y Vigor
-    c1, c2, c3, c4 = st.columns([1, 1.8, 1, 1])
-    c1.metric("Cultivo", str(farm_data['crop_type']))
-    c2.metric("🗓️ Periodo de Monitoreo", bench['periodo_captura'])
-    c3.metric("Vigor (NDVI)", f"{farm_data['NDVI_index']:.2f}")
-    c4.metric("Estado Fitosanitario", str(farm_data['crop_disease_status']))
-
-    # Fila 2: Condiciones Meteorológicas y de Suelo
-    c5, c6, c7, c8, c9 = st.columns(5)
-    c5.metric("🌡️ Temperatura", f"{farm_data.get('temperature_C', 'N/A')} °C")
-    c6.metric("💧 Humedad Suelo", f"{farm_data.get('soil_moisture_%', 'N/A')}%")
-    c7.metric("🌧️ Lluvia Acumulada", f"{farm_data.get('rainfall_mm', 'N/A')} mm")
-    c8.metric("🧪 pH del Suelo", f"{farm_data.get('soil_pH', 'N/A')}")
-    c9.metric("🚿 Sistema Riego", str(farm_data.get('irrigation_type', 'N/A')))
-
-    st.markdown("**🌱 Recomendaciones Agronómicas Específicas:**")
-    for reco in bench['recomendaciones']:
-        st.write(f"• {reco}")
-        
-
-# ---------------------------------------------------------
 # 2. Benchmarks y Parámetros Estándar por Cultivo
 # ---------------------------------------------------------
 DEFAULT_BENCHMARK = {
@@ -184,8 +158,10 @@ modelo_rf, columnas_ml, df_50 = cargar_recursos()
 # Configuración API Gemini
 api_key = st.secrets.get("GEMINI_API_KEY", None)
 if api_key:
-    try: genai.configure(api_key=api_key)
-    except Exception: pass
+    try: 
+        genai.configure(api_key=api_key)
+    except Exception: 
+        pass
 
 # ---------------------------------------------------------
 # 4. Motor de Cálculo Financiero Unificado
@@ -309,7 +285,7 @@ def fig_radar_riesgo(ndvi, dscr_val, disease_status):
 # 6. Generación de Informes & Fallback para Gemini
 # ---------------------------------------------------------
 def generar_fallback_local_report(fin_data, bench, farm_id, farm_data):
-"""Genera un informe ejecutivo robusto analizando el impacto de riesgos en la decisión final."""
+    """Genera un informe ejecutivo robusto analizando el impacto de riesgos en la decisión final."""
     
     # Análisis de sensibilidad de la decisión según DSCR en estrés
     impacto_decision = ""
@@ -329,14 +305,15 @@ def generar_fallback_local_report(fin_data, bench, farm_id, farm_data):
 * **Monto Total Exigible a Devolver:** **${fin_data['total_a_devolver']:,.2f} USD**.
 * **Retorno Neto Proyectado del Agricultor:** **${fin_data['retorno_neto_usd']:,.2f} USD** (Margen del {fin_data['retorno_neto_pct']:.1f}%).
 
-### 2. Cuadro de Conformación Financiera de Devolución
-| Concepto Financiero | Valor (USD) | % sobre Capital | Observación de Auditoría |
+---
+
+### 2. Cuadro Integrado de Devolución
+| Concepto | Monto (USD) | % del Capital | Impacto Financiero |
 | :--- | :--- | :--- | :--- |
-| **Capital Solicitado** | ${fin_data['capital']:,.2f} | 100.0% | Base desembolsada principal |
-| **Costos Operativos Fijos** | ${fin_data['total_costos_operativos']:,.2f} | {(fin_data['total_costos_operativos']/fin_data['capital']*100):.1f}% | Estructuración, Seguro y Reserva |
-| **Interés Nominal Generado** | ${fin_data['interes_monto']:,.2f} | {(fin_data['interes_monto']/fin_data['capital']*100):.1f}% | Generados a 6 meses de plazo |
-| **TOTAL A DEVOLVER** | **${fin_data['total_a_devolver']:,.2f}** | **{(fin_data['total_a_devolver']/fin_data['capital']*100):.1f}%** | **Obligación total exigible** |
-| **Retorno Neto Agricultor** | **${fin_data['retorno_neto_usd']:,.2f}** | **{fin_data['retorno_neto_pct']:.1f}% Margen** | **Utilidad proyectada post-OPEX** |
+| **Capital Solicitado** | ${fin_data['capital']:,.2f} | 100.0% | Principal prestado |
+| **Intereses Generados** | ${fin_data['interes_monto']:,.2f} | {(fin_data['interes_monto']/fin_data['capital']*100):.1f}% | Costo de financiamiento (6 meses) |
+| **Costos Operativos (Estructuración/Seguro/Reserva)** | ${fin_data['total_costos_operativos']:,.2f} | {(fin_data['total_costos_operativos']/fin_data['capital']*100):.1f}% | Gastos fijos institucionales |
+| **TOTAL A DEVOLVER** | **${fin_data['total_a_devolver']:,.2f}** | **{(fin_data['total_a_devolver']/fin_data['capital']*100):.1f}%** | **Deuda Total Contratada** |
 
 ---
 
@@ -393,7 +370,6 @@ with st.sidebar:
         st.session_state.messages.append({"role": "user", "content": user_input})
         st.chat_message("user").write(user_input)
         
-        # Lógica de respuesta rápida del Asistente
         respuesta = f"Entendido. Respecto a tu consulta sobre '{user_input}': Recuerda que si el DSCR es inferior a 1.25x o la condición fitosanitaria es desfavorable, es altamente recomendable solicitar la Estrategia A (reducción de capital) o exigir la cobertura de seguro paramétrico al 100%."
         st.session_state.messages.append({"role": "assistant", "content": respuesta})
         st.chat_message("assistant").write(respuesta)
@@ -412,16 +388,26 @@ with col3:
     st.caption(f"Rango Tasa Sugerida ({farm_data['crop_type']}): **{bench['tasa_min']}% – {bench['tasa_max']}%**")
     tasa_interes = st.slider("Tasa de Interés Nominal Anual (%):", float(bench['tasa_min']), float(bench['tasa_max']), float(bench['tasa_def']), step=0.5)
 
-# Diagnóstico de Parcela
+# Diagnóstico de Parcela (Datos Ampliados y Telemetría IoT)
 with st.container(border=True):
-    st.subheader(f"📍 Parcela {farm_id} — Telemetría IoT y Diagnóstico Agronómico")
-    t1, t2, t3, t4 = st.columns([1.2, 1.8, 1, 1])
-    t1.metric("Cultivo", str(farm_data['crop_type']))
-    t2.metric("Ventana Monitoreo IoT", bench['periodo_captura'])
-    t3.metric("Vigor (NDVI)", f"{farm_data['NDVI_index']:.2f}")
-    t4.metric("Estado Fitosanitario", str(farm_data['crop_disease_status']))
+    st.subheader(f"📍 Parcela {farm_id} ({farm_data.get('region', 'N/A')}) — Telemetría Agronómica Integrada")
+    
+    # Fila 1: Datos de Cultivo, Monitoreo y Vigor
+    c1, c2, c3, c4 = st.columns([1, 1.8, 1, 1])
+    c1.metric("Cultivo", str(farm_data['crop_type']))
+    c2.metric("🗓️ Periodo de Monitoreo", bench['periodo_captura'])
+    c3.metric("Vigor (NDVI)", f"{farm_data['NDVI_index']:.2f}")
+    c4.metric("Estado Fitosanitario", str(farm_data['crop_disease_status']))
 
-    st.markdown("**🌱 Recomendaciones Agronómicas del Cultivo:**")
+    # Fila 2: Condiciones Meteorológicas y de Suelo
+    c5, c6, c7, c8, c9 = st.columns(5)
+    c5.metric("🌡️ Temperatura", f"{farm_data.get('temperature_C', 'N/A')} °C")
+    c6.metric("💧 Humedad Suelo", f"{farm_data.get('soil_moisture_%', 'N/A')}%")
+    c7.metric("🌧️ Lluvia Acumulada", f"{farm_data.get('rainfall_mm', 'N/A')} mm")
+    c8.metric("🧪 pH del Suelo", f"{farm_data.get('soil_pH', 'N/A')}")
+    c9.metric("🚿 Sistema Riego", str(farm_data.get('irrigation_type', 'N/A')))
+
+    st.markdown("**🌱 Recomendaciones Agronómicas Específicas:**")
     for reco in bench['recomendaciones']:
         st.write(f"• {reco}")
 
@@ -523,7 +509,7 @@ if st.button("⚡ Generar Informe Integrado de Auditoría e Institucionalidad", 
         res_json = consultar_agente_gemini(prompt_informe, fin, bench, farm_id, farm_data)
         st.markdown(res_json.get("informe_auditoria_markdown", "No se pudo generar el informe."))
 
-# Panel Éxico de Gobernanza (Human-in-the-Loop)
+# Panel Ético de Gobernanza (Human-in-the-Loop)
 st.markdown('<div class="human-decision-box">', unsafe_allow_html=True)
 st.subheader("👨‍💼 Panel de Decisiones de Gobernanza (Human-in-the-Loop)")
 st.write("La recomendación algorítmica es un insumo técnico. La decisión contractual final es responsabilidad exclusiva del analista de crédito responsable.")
