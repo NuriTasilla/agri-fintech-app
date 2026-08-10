@@ -597,13 +597,18 @@ if fin['sugerencia'] != "APROBACIÓN SUGERIDA":
 # 11. Auditoría Integrada y Dictamen Humano (Gobernanza)
 # ---------------------------------------------------------
 st.markdown("---")
-if st.button("⚡ Generar Informe Integrado de Auditoría e Institucionalidad", type="primary", use_container_width=True):
-    prompt_informe = f"""Genera un informe institucional en formato JSON con la clave 'informe_auditoria_markdown' para la parcela {farm_id} con cultivo {farm_data['crop_type']}.
-    Datos: Capital={fin['capital']}, Devolución Total={fin['total_a_devolver']}, Score={fin['score']}, DSCR={fin['dscr']:.2f}."""
+
+if st.button("⚡ Generar Informe Integrado de Auditoría e Institucionalidad (IA Senior)", type="primary", use_container_width=True):
+    # 1. Construir el prompt detallado de nivel bancario/senior
+    prompt_informe = construir_prompt_senior_ia(fin, bench, farm_id, farm_data, yield_pred)
     
-    with st.spinner("Procesando auditoría y análisis de estrés..."):
-        res_json = consultar_agente_gemini(prompt_informe, fin, bench, farm_id, farm_data)
-        st.markdown(res_json.get("informe_auditoria_markdown", "No se pudo generar el informe."))
+    # 2. Iniciar el spinner de procesando
+    with st.spinner("Procesando auditoría de riesgo, simulación de estrés regional y convenios..."):
+        # 3. Llamar a la función pasando los 6 argumentos correctos
+        res_json = consultar_agente_gemini(prompt_informe, fin, bench, farm_id, farm_data, yield_pred)
+        
+        # 4. Renderizar el resultado en pantalla en formato Markdown
+        st.markdown(res_json.get("informe_auditoria_markdown", "No se pudo generar el informe de auditoría."))
 
 # Panel Ético de Gobernanza (Human-in-the-Loop)
 st.markdown('<div class="human-decision-box">', unsafe_allow_html=True)
